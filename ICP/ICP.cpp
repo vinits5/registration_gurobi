@@ -101,7 +101,7 @@ ICP_Result ICP::compute(int iterations){
 		Matrix<float,4,4> dg = ICP::icp_Rt_to_matrix(T);		// Generate Transformation Matrix.
 		g = dg*g;												// Apply it to previous transformations.
 		g_series.push_back(g);									// Store the transformation in a vector.
-		cout<<"Index No: "<<itr<<" & Error: "<<error_mat.sum()<<endl;
+		// cout<<"Index No: "<<itr<<" & Error: "<<error_mat.sum()<<endl;
 	}
 
 	result.g = g;
@@ -129,5 +129,11 @@ MatrixXf icp_test(MatrixXf *V, MatrixXf *S, MatrixXf *M, KDTree *tree_M, MatrixX
 		ICP_Result result = icp.compute(20);					// Call the compute method with 20 iterations.
 		transformation_data = result.g;
 	}
+
+	// Bring Back the matrices their original shape.
+	V->transposeInPlace();				// 3xN1 (vertices)
+	S->transposeInPlace();				// 3x500 (sensor pts)
+	M->transposeInPlace();				// 3xN2 (model pts)
+	M_sampled->transposeInPlace();		// 3xNi (sampled model pts)
 	return transformation_data;
 }

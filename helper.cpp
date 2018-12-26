@@ -65,17 +65,16 @@ void find_all_opt_variables(OptVariables *opt_vars, MatrixXf *S, MatrixXf *M, KD
 		// gt:			Pointer of transformation matrix from model to sensor (4x4)
 		// B: 			Data from the text file. (Ns x 3 x 3)
 
+	printMatrixSize(S);
+	printMatrixSize(M);
+	printMatrixSize(gt);
 	Matrix<float,3,1> translation = gt->block(0,3,3,1);
 	MatrixXf transformed_sens_pts = (gt->block(0,0,3,3)*(*S)).colwise()+translation;	// Transform the sensor points (R*S+t) (3xNs)
 	find_Cb(&(opt_vars->Cb), &transformed_sens_pts, tree_M, M->cols());		// Function to find correspondences.
 	find_lam(&(opt_vars->lam), gt, num_partitions_SOS2);
 	find_w(&(opt_vars->w), &(opt_vars->lam), num_partitions_SOS2);
 	find_alpha(&(opt_vars->alpha), gt, S, M, &(opt_vars->Cb), B);
-	// ##########################################################
-	// Stopped Here.
-	// Some Problem with sizes of matrix. Check it
-	// ##########################################################
-	// find_phi(&(opt_vars->phi), &(opt_vars->alpha));
+	find_phi(&(opt_vars->phi), &(opt_vars->alpha));
 }
 
 // Fucntion to find alpha 
@@ -122,6 +121,7 @@ void find_lam(vector<Matrix<float,3,3>> *lam, MatrixXf *gt, int *num_partitions_
 	// Output:
 		// lam:					Name of the lamda array to store lambda matrices (num_partitions_SOS2 x 3 x 3)
 
+	lam->clear();									// Remove all previous elements in the vector.
 	MatrixXf gt_inv = gt->inverse();				// Find the inverse of ground truth rotation matrix.
 	for(int i=0; i<*num_partitions_SOS2; i++){
 		lam->push_back(Matrix<float,3,3>::Zero());			// Initialize zero matrices in each element of array.

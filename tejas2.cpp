@@ -18,11 +18,12 @@ int main(){
 	// int outlier_switch = 0;
 	int M_sampled_switch_global_optimiser = 1; 			// if 1, uses M_sampled in global optimizer 
 	int set_start_sol_switch = 1; 						// 1 sets the initial seed value using ICP/GICP 
-	// int callback_switch = 1; 							// on or off
+	// int callback_switch = 1; 						// on or off
 	// int ICP_or_GICP_switch_callback = 1;				// 1 for ICP, 2 for GICP
-	// int ICP_triangle_proj_switch_callback = 0;			// on or off
+	// int ICP_triangle_proj_switch_callback = 0;		// on or off
 	int ICP_or_GICP_switch_bucket = 1;					// 1 for ICP, 2 for GICP
 	int ICP_triangle_proj_switch_bucket = 0;			// on or off
+	int alpha_switch = 1;							// for alpha switch with sigma.
 
 	// Define Constants
 	int Ns_sampled = 20;								// fewer sensor points for optimization 
@@ -106,11 +107,14 @@ int main(){
 
 		// Define Model Data for optimization.
 		MatrixXf *M_global;
+		KDTree *tree_M_global;
 		if(M_sampled_switch_global_optimiser==1){
 			M_global = &M_sampled;						// Store the pointer in M_global.
+			tree_M_global = &tree_M_sampled;			// Store the pointer of KDTree in global.
 		}
 		else{
 			M_global = &M;								// Store the pointer in M.
+			tree_M_global = &tree_M;
 		}
 		
 		int Nm_global = M_global->cols();				// Store the Number of Points in Model data.
@@ -147,8 +151,8 @@ int main(){
 		OptVariables opt_vars;				// Store Opt Variables.
 		find_all_opt_variables(&opt_vars, &S, &M, &tree_M, &gt, &num_partitions_SOS2, &B);	// Complete this function.
 
-		// cout<<"Best Objective Stop: "<<opt_vars.phi.sum()/Ns<<endl;
-		// m.set(GRB_DoubleParam_BestObjStop,opt_vars.phi.sum()/Ns);		// Best Objective Stop Parameter.
+		cout<<"Best Objective Stop: "<<opt_vars.phi.sum()/Ns<<endl;
+		m.set(GRB_DoubleParam_BestObjStop,opt_vars.phi.sum()/Ns);		// Best Objective Stop Parameter.
 
 		if(set_start_sol_switch==1){
 			m.set(GRB_IntParam_StartNodeLimit,2000000000-2);
@@ -156,19 +160,39 @@ int main(){
 			// Perform ICP to find Transformation.
 			MatrixXf transformation = icp_test(&V, &S_Sampled, &M, &tree_M, &M_sampled, &tree_M_sampled, &SigmaS, &F, &points_per_face, &ICP_triangle_proj_switch_bucket, &ICP_or_GICP_switch_bucket);
 			MatrixXf S_NsSampled = S.block(0,0,3,Ns_sampled);				// (3 x 20)
+			transformation = transformation.inverse();
+
 			// Find new opt_variables.
-			OptVariables opt_vars1;
-			find_all_opt_variables(&opt_vars1, &S_NsSampled, &M, &tree_M, &transformation, &num_partitions_SOS2, &B);
+			find_all_opt_variables(&opt_vars, &S_NsSampled, M_global, tree_M_global, &transformation, &num_partitions_SOS2, &B);
 
-			// cout<<opt_vars1.w<<endl;
+			// Provide Initial Solution.
+			provide_initialSol(&T[0][0], &R[0][0], &Cb_sampled[0][0], &lam[0][0][0], &W[0][0], &alpha[0][0], &phi[0][0], &transformation, &opt_vars, &Ns_sampled, &Nm_global, &num_partitions_SOS2);
 
-			// Provide a better starting point of transformation (R, T) for the Gurobi Optimization.
-			// for(int i=0; i<3; i++){
-			// 	T[i][0].set(GRB_DoubleAttr_Start,transformation.coeff(i,3));		// Set the Translation Part.
-			// 	for(int j=0; j<3; j++){
-			// 		R[i][j].set(GRB_DoubleAttr_Start, transformation.coeff(i,j));	// Set the Rotation Part.
-			// 	}
-			// }
+			// Define All Constraints Here.
+			// define_TConstr(&m, &T[0][0], &gt);
+			define_RConstr(&m, &R[0][0], &gt);
+			define_WConstr(&m, &W[0][0]);
+			define_SOSConstr(&m, &lam[0][0][0], &R[0][0], &W[0][0], q, &num_partitions_SOS2);
+			define_SOS2Constr(&m, &lam[0][0][0]);
+			define_CorrespondenceConstr(&m, &Cb_sampled[0][0], &Ns_sampled, &Nm_global);
+
+			// Alpha for model to sensor.
+			if(alpha_switch == 1){
+				// Stopped Here
+				// Complete this function.
+				define_AlphaM2SConstr(&m, &B, &S, &T[0][0], &R[0][0], &Cb_sampled[0][0], &alpha[0][0], M_global, &Ns_sampled, &Nm_global);
+			}
+
+			define_phiConstr(&m, &phi[0][0], &alpha[0][0], &Ns_sampled);
+
+			// Define Objective function for minimization.
+			GRBLinExpr obj_sum = 0;
+			for(int i=0; i<Ns_sampled; i++){
+				obj_sum = obj_sum + phi[0][i];
+			}
+			m.setObjective(obj_sum/Ns_sampled, GRB_MINIMIZE);
+
+			
 		}
 	}
 	catch(GRBException e){
