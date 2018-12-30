@@ -34,6 +34,12 @@ void find_phi(MatrixXf *, MatrixXf *);
 
 void find_w(Matrix<float,3,3> *, vector<Matrix<float,3,3>> *, int *);
 
+void flatten_matrix(MatrixXf *, double *);
+
+void flatten_vector(vector<Matrix<float,3,3>> *, double *);
+
+void flatten_w(Matrix<float,3,3> *, double *);
+
 void linspace(float *,int, int, int);
 
 void printMatrixSize(MatrixXf *);

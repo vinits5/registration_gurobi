@@ -86,7 +86,7 @@ void define_GRBVar(GRBModel *model, GRBVar *var, int row_size, int col_size, lon
 	for(int i=0; i<row_size; i++){
 		for(int j=0; j<col_size; j++){
 			// var[i][j]
-			*(var+col_size*i+j)=model->addVar(lb,ub,0,dtype,name);
+			*(var+col_size*i+j)=model->addVar(lb,ub,0,dtype,name+"{"+to_string(i)+","+to_string(j)+"}");
 		}
 	}
 }
@@ -151,7 +151,7 @@ void define_RConstr(GRBModel *model, GRBVar *var, MatrixXf *gt){
 			GRBQuadExpr sum = 0;
 			for(int k=0; k<3; k++){
 				// sum = sum + (var[k][i]+var[k][j]) * (var[k][i]+var[k][j])
-				sum = sum + (*(var+var_cols*k+i) + *(var+var_cols*k+j)) * (*(var+var_cols*k+j) + *(var+var_cols*k+j));
+				sum = sum + (*(var+var_cols*k+i) + *(var+var_cols*k+j)) * (*(var+var_cols*k+i) + *(var+var_cols*k+j));
 			}
 			model->addQConstr(sum<=2, "rotConstr1");
 		}
@@ -277,7 +277,7 @@ void define_3D_GRBVar(GRBModel *model, GRBVar *var, int row_size, int col_size, 
 	for(int i=0; i<dim3_size; i++){
 		for(int j=0; j<row_size; j++){
 			for(int k=0; k<col_size; k++){
-				*(var+row_size*col_size*i+col_size*j+k)=model->addVar(lb,ub,0,dtype,name);	// var[i][j][k]
+				*(var+row_size*col_size*i+col_size*j+k)=model->addVar(lb,ub,0,dtype,name+"{"+to_string(i)+","+to_string(j)+","+to_string(k)+"}");	// var[i][j][k]
 			}
 		}
 	}
@@ -329,4 +329,3 @@ void provide_initialSol(GRBVar *T, GRBVar *R, GRBVar *Cb_sampled, GRBVar *lam, G
 		(*(phi+*Ns_sampled*0+i)).set(GRB_DoubleAttr_Start,(opt_vars->phi)(0,i));			//phi[0][i]
 	}
 }
-

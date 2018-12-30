@@ -166,6 +166,40 @@ void find_w(Matrix<float,3,3> *w, vector<Matrix<float,3,3>> *lam, int *num_parti
 	}
 }
 
+// Flatten the 2D matrix row by row in an array.
+void flatten_matrix(MatrixXf *ip_matrix, double *op_array){
+	int counter = 0;
+	for(int i=0; i<ip_matrix->rows(); i++){
+		for(int j=0; j<ip_matrix->cols(); j++){
+			op_array[counter]=ip_matrix->coeff(i,j);
+			counter = counter+1;
+		}
+	}
+}
+
+void flatten_vector(vector<Matrix<float,3,3>> *ip_vector, double *op_array){
+	int counter = 0;
+	for(int i=0; i<(int)(ip_vector->size()); i++){
+		for(int j=0; j<(*ip_vector)[0].rows(); j++){
+			for(int k=0; k<(*ip_vector)[0].cols(); k++){
+				op_array[counter]=(*ip_vector)[i].coeff(j,k);
+				counter = counter+1;
+			}
+		}
+	}
+}
+
+// Flatten the w matrix of fix size row by row in an array.
+void flatten_w(Matrix<float,3,3> *ip_matrix, double *op_array){
+	int counter = 0;
+	for(int i=0; i<ip_matrix->rows(); i++){
+		for(int j=0; j<ip_matrix->cols(); j++){
+			op_array[counter]=ip_matrix->coeff(i,j);
+			counter = counter+1;
+		}
+	}
+}
+
 // function similar to numpy.linspace
 void linspace(float *result_array, int lower_value, int upper_value, int size){
 	// Arguments:

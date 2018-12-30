@@ -5,6 +5,7 @@
 #include "KDTree/kd_tree.h"
 #include "GurobiCodes/gurobi_helper.h"
 #include "ICP/ICP.h"
+#include "Callback/callbackMtoS.h"
 
 using namespace std;
 using namespace Eigen;
@@ -17,18 +18,18 @@ int main(){
 	// Define Switches.
 	// int outlier_switch = 0;
 	int M_sampled_switch_global_optimiser = 1; 			// if 1, uses M_sampled in global optimizer 
-	int set_start_sol_switch = 1; 						// 1 sets the initial seed value using ICP/GICP 
-	// int callback_switch = 1; 						// on or off
-	// int ICP_or_GICP_switch_callback = 1;				// 1 for ICP, 2 for GICP
-	// int ICP_triangle_proj_switch_callback = 0;		// on or off
+	int set_start_sol_switch = 2; 						// 1 sets the initial seed value using ICP/GICP 
+	int callback_switch = 1; 							// on or off
+	int ICP_or_GICP_switch_callback = 1;				// 1 for ICP, 2 for GICP
+	int ICP_triangle_proj_switch_callback = 0;			// on or off
 	int ICP_or_GICP_switch_bucket = 1;					// 1 for ICP, 2 for GICP
 	int ICP_triangle_proj_switch_bucket = 0;			// on or off
-	int alpha_switch = 1;							// for alpha switch with sigma.
+	int alpha_switch = 1;								// for alpha switch with sigma.
 
 	// Define Constants
 	int Ns_sampled = 20;								// fewer sensor points for optimization 
 	int num_sampled_sens_points_ICP = 500;
-	int approx_sampled_model_points = 300;
+	int approx_sampled_model_points = 20;
 
 	// Read the data from text files.
 	MatrixXf S = read_file("datasets/dragon_6000_noisy/S.txt"); 			// file is nx3  (S_given)
@@ -64,7 +65,8 @@ int main(){
 	// Sample Model Points from the Model Data.
 	cout<<"Approx Sampled Model Points: "<<approx_sampled_model_points<<endl;
 	int interval_sampled_model_points = Nm/approx_sampled_model_points;
-	MatrixXf M_sampled(M.rows(),(Nm/interval_sampled_model_points)+1);
+	// MatrixXf M_sampled(M.rows(),(Nm/interval_sampled_model_points)+1);
+	MatrixXf M_sampled(M.rows(),(Nm/interval_sampled_model_points));
 	sampleModelPoints(&M, &M_sampled, &interval_sampled_model_points);
 
 	int Nm_sampled = M_sampled.cols();			// Points in Sampled Model data.
@@ -163,36 +165,70 @@ int main(){
 			transformation = transformation.inverse();
 
 			// Find new opt_variables.
-			find_all_opt_variables(&opt_vars, &S_NsSampled, M_global, tree_M_global, &transformation, &num_partitions_SOS2, &B);
+			OptVariables opt_vars1;
+			find_all_opt_variables(&opt_vars1, &S_NsSampled, M_global, tree_M_global, &transformation, &num_partitions_SOS2, &B);
 
 			// Provide Initial Solution.
-			provide_initialSol(&T[0][0], &R[0][0], &Cb_sampled[0][0], &lam[0][0][0], &W[0][0], &alpha[0][0], &phi[0][0], &transformation, &opt_vars, &Ns_sampled, &Nm_global, &num_partitions_SOS2);
+			provide_initialSol(&T[0][0], &R[0][0], &Cb_sampled[0][0], &lam[0][0][0], &W[0][0], &alpha[0][0], &phi[0][0], &transformation, &opt_vars1, &Ns_sampled, &Nm_global, &num_partitions_SOS2);
+		}
 
-			// Define All Constraints Here.
-			// define_TConstr(&m, &T[0][0], &gt);
-			define_RConstr(&m, &R[0][0], &gt);
-			define_WConstr(&m, &W[0][0]);
-			define_SOSConstr(&m, &lam[0][0][0], &R[0][0], &W[0][0], q, &num_partitions_SOS2);
-			define_SOS2Constr(&m, &lam[0][0][0]);
-			define_CorrespondenceConstr(&m, &Cb_sampled[0][0], &Ns_sampled, &Nm_global);
+		// Define All Constraints Here.
+		// define_TConstr(&m, &T[0][0], &gt);
+		define_RConstr(&m, &R[0][0], &gt);
+		define_WConstr(&m, &W[0][0]);
+		define_SOSConstr(&m, &lam[0][0][0], &R[0][0], &W[0][0], q, &num_partitions_SOS2);
+		define_SOS2Constr(&m, &lam[0][0][0]);
+		define_CorrespondenceConstr(&m, &Cb_sampled[0][0], &Ns_sampled, &Nm_global);
 
-			// Alpha for model to sensor.
-			if(alpha_switch == 1){
-				// Stopped Here
-				// Complete this function.
-				define_AlphaM2SConstr(&m, &B, &S, &T[0][0], &R[0][0], &Cb_sampled[0][0], &alpha[0][0], M_global, &Ns_sampled, &Nm_global);
-			}
+		// Alpha for model to sensor.
+		if(alpha_switch == 1){
+			// Stopped Here
+			// Complete this function.
+			define_AlphaM2SConstr(&m, &B, &S, &T[0][0], &R[0][0], &Cb_sampled[0][0], &alpha[0][0], M_global, &Ns_sampled, &Nm_global);
+		}
 
-			define_phiConstr(&m, &phi[0][0], &alpha[0][0], &Ns_sampled);
+		define_phiConstr(&m, &phi[0][0], &alpha[0][0], &Ns_sampled);
 
-			// Define Objective function for minimization.
-			GRBLinExpr obj_sum = 0;
-			for(int i=0; i<Ns_sampled; i++){
-				obj_sum = obj_sum + phi[0][i];
-			}
-			m.setObjective(obj_sum/Ns_sampled, GRB_MINIMIZE);
+		// Define Objective function for minimization.
+		GRBLinExpr obj_sum = 0;
+		for(int i=0; i<Ns_sampled; i++){
+			obj_sum = obj_sum + phi[0][i];
+		}
+		m.setObjective(obj_sum/Ns_sampled, GRB_MINIMIZE);
 
-			
+		Params params;
+		params.Ns_sampled = &Ns_sampled;
+		params.S = &S;
+		params.num_sampled_sens_points_ICP = &num_sampled_sens_points_ICP;
+		params.V = &V;
+		params.M = &M;
+		params.tree_M = &tree_M;
+		params.M_sampled = &M_sampled;
+		params.tree_M_sampled = &tree_M_sampled;
+		params.SigmaS = &SigmaS;
+		params.F = &F;
+		params.B = &B;
+		params.M_global = M_global;
+		params.num_partitions_SOS2 = &num_partitions_SOS2;
+		params.points_per_face = &points_per_face;
+		params.ICP_triangle_proj_switch_callback = &ICP_triangle_proj_switch_callback;
+		params.ICP_or_GICP_switch_callback = &ICP_or_GICP_switch_callback;
+
+		m.update();
+		// GRBConstr *c=0;
+		// c = m.getConstrs();  
+		// for(int i=0;i<m.get(GRB_IntAttr_NumConstrs);++i){
+		// 	cout << c[i].get(GRB_StringAttr_ConstrName) << endl;
+		// }
+
+		m.write("debug.lp");
+		if(callback_switch==1){
+			callbackMtoS cb = callbackMtoS(&m, &params);
+			m.setCallback(&cb);
+			m.optimize();
+		}
+		else{
+			m.optimize();
 		}
 	}
 	catch(GRBException e){

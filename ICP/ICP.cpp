@@ -13,7 +13,7 @@ ICP::ICP(MatrixXf *p0, MatrixXf *p1, KDTree *tree_M_sampled, MatrixXf *SigmaS){
 	// *p1 		Sensor Points 		 (500x3)
 
 	p0_ICP = p0; p1_ICP = p1; tree_M_sampled_ICP = tree_M_sampled; SigmaS_ICP = SigmaS;
-	cout<<"ICP Class"<<endl;
+	cout<<"ICP Called"<<endl;
 }
 
 // Find Rotation & Translation between sensor & target.
@@ -32,7 +32,7 @@ Transformation ICP::find_rigid_transform(MatrixXf *sensor, MatrixXf *target){
 
 	JacobiSVD<MatrixXf> svd(H, ComputeThinU | ComputeThinV);	// Computes U,Vt.T,diagonal of Sigma Matrices.
 	Transformation T;
-	T.rotation_matrix = svd.matrixV()*svd.matrixU().transpose();	// Compute Rotation Matrix (3x3)	(R = U*V.trans)
+	T.rotation_matrix = svd.matrixV()*svd.matrixU().transpose();	// Compute Rotation Matrix (3x3)	(R = V*U.trans)
 	
 	if (T.rotation_matrix.determinant() < 0){
 		// Special Reflection cases.
