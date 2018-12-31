@@ -6,6 +6,7 @@
 #include "/home/vinit/gurobi/gurobi752/linux64/include/gurobi_c++.h"
 #include "KDTree/kd_tree.h"
 #include "KDTree/type_defs.h"
+#include "ICP/ICP.h"
 
 using namespace std;
 using namespace Eigen;
@@ -17,6 +18,8 @@ struct OptVariables{
 	MatrixXf alpha;						// (3 x Ns)
 	MatrixXf phi;						// (1 x Ns)
 };
+
+MatrixXf bucket_refinement(MatrixXf *, Matrix<float,3,1> *, int *, MatrixXf *, MatrixXf *, MatrixXf *, KDTree *, MatrixXf *, KDTree *, MatrixXf *, int *, MatrixXf *, MatrixXf *, int *, int *, int *);
 
 vector<Matrix<float,3,3>> B_Nsx6_to_3x3(MatrixXf *);
 

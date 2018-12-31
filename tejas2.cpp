@@ -196,40 +196,108 @@ int main(){
 		}
 		m.setObjective(obj_sum/Ns_sampled, GRB_MINIMIZE);
 
+		// Parameters for the callback class.
 		Params params;
-		params.Ns_sampled = &Ns_sampled;
-		params.S = &S;
+		params.Ns_sampled = &Ns_sampled; params.S = &S; 
 		params.num_sampled_sens_points_ICP = &num_sampled_sens_points_ICP;
-		params.V = &V;
-		params.M = &M;
-		params.tree_M = &tree_M;
-		params.M_sampled = &M_sampled;
-		params.tree_M_sampled = &tree_M_sampled;
-		params.SigmaS = &SigmaS;
-		params.F = &F;
-		params.B = &B;
-		params.M_global = M_global;
-		params.num_partitions_SOS2 = &num_partitions_SOS2;
-		params.points_per_face = &points_per_face;
-		params.ICP_triangle_proj_switch_callback = &ICP_triangle_proj_switch_callback;
-		params.ICP_or_GICP_switch_callback = &ICP_or_GICP_switch_callback;
+		params.V = &V; params.M = &M; params.tree_M = &tree_M; params.M_sampled = &M_sampled;
+		params.tree_M_sampled = &tree_M_sampled; params.SigmaS = &SigmaS; params.F = &F; params.B = &B;
+		params.M_global = M_global; params.num_partitions_SOS2 = &num_partitions_SOS2; params.points_per_face = &points_per_face;
+		params.ICP_triangle_proj_switch_callback = &ICP_triangle_proj_switch_callback; params.ICP_or_GICP_switch_callback = &ICP_or_GICP_switch_callback;
 
+		// Update the model.
 		m.update();
-		// GRBConstr *c=0;
-		// c = m.getConstrs();  
-		// for(int i=0;i<m.get(GRB_IntAttr_NumConstrs);++i){
-		// 	cout << c[i].get(GRB_StringAttr_ConstrName) << endl;
-		// }
 
-		m.write("debug.lp");
+		m.write("debug.lp");		// Write all the details about the optimization in debug file.
+
+		// Optimize the model with callback or without callback.
 		if(callback_switch==1){
-			callbackMtoS cb = callbackMtoS(&m, &params);
-			m.setCallback(&cb);
-			m.optimize();
+			callbackMtoS cb = callbackMtoS(&m, &params);		// Create object of callback class.
+			m.setCallback(&cb);									// Set callback class for the optimization.
+			m.optimize();										// Optimize the problem.
 		}
 		else{
-			m.optimize();
+			m.optimize();										// Optimize without callback.
 		}
+
+		int number_of_solutions = 100;
+		m.set(GRB_IntParam_PoolSolutions,number_of_solutions);
+
+		MatrixXf FivePointEstimation = MatrixXf::Zero(number_of_solutions,4);
+		for(int iii=0; iii<number_of_solutions; iii++){
+			// Define Bucket Matrix
+			int bucket_size = m.get(GRB_IntAttr_SolCount);
+			vector<MatrixXf> Bucket;							// (solCount x 4 x 4)
+			for(int i=0; i<bucket_size; i++){
+				Bucket.push_back(MatrixXf::Zero(4,4));
+			}
+
+			if (iii<bucket_size){
+				m.set(GRB_IntParam_SolutionNumber,iii);
+				cout<<"Bucket Number: "<<iii<<endl;
+
+				MatrixXf Cb_sampled_before_bucket = MatrixXf::Zero(Ns_sampled, Nm_global);
+				for(int k=0; k<Ns_sampled; k++){
+					for(int j=0; j<Nm_global; j++){
+						Cb_sampled_before_bucket(k,j) = Cb_sampled[k][j].get(GRB_DoubleAttr_Xn);
+					}
+				}
+
+				MatrixXf R_bucket_input_M_to_S = MatrixXf::Zero(3,3);
+				for(int k=0; k<3; k++){
+					for(int j=0; j<3; j++){
+						R_bucket_input_M_to_S(k,j) = R[k][j].get(GRB_DoubleAttr_Xn);
+					}
+				}
+
+				MatrixXf T_bucket_input_M_to_S = MatrixXf::Zero(3,1);
+				for(int k=0; k<3; k++){
+					T_bucket_input_M_to_S(k,0) = T[k][0].get(GRB_DoubleAttr_Xn);
+				}
+
+				MatrixXf mat_bucket_input_M_to_S = MatrixXf::Zero(4,4);
+				mat_bucket_input_M_to_S(3,3)=1;
+				mat_bucket_input_M_to_S.block(0,0,3,3) = R_bucket_input_M_to_S;
+				mat_bucket_input_M_to_S.block(0,3,3,1) = T_bucket_input_M_to_S;
+				mat_bucket_input_M_to_S = mat_bucket_input_M_to_S.inverse();
+
+				MatrixXf R_bucket_input = mat_bucket_input_M_to_S.block(0,0,3,3);
+				Matrix<float,3,1> T_bucket_input = mat_bucket_input_M_to_S.block(0,3,3,1);
+				JacobiSVD<MatrixXf> svd(R_bucket_input, ComputeThinU | ComputeThinV);
+				MatrixXf R_bucket_input_valid = svd.matrixU()*svd.matrixV().transpose();		// V matrix provided by eigen library is transpose of V matrix given by numpy in python.
+
+				if(R_bucket_input_valid.determinant()<0){
+					MatrixXf temp = svd.matrixV();
+					temp(0,2)=-1*temp(0,2); temp(1,2)=-1*temp(1,2); temp(2,2)=-1*temp(2,2);
+					R_bucket_input_valid = svd.matrixU()*temp.transpose();
+				}
+
+				cout<<"R_bucket_input_valid: "<<R_bucket_input_valid<<endl;
+				cout<<"T_bucket_input: "<<T_bucket_input<<endl;
+				cout<<"Ground Truth: "<<gt<<endl;
+
+				cout<<"Before Bucket Refinement: "<<endl;
+				MatrixXf error_mat = mat_bucket_input_M_to_S.inverse()*gt;
+				Matrix<float,3,3> errorMat = error_mat.block(0,0,3,3);
+				MatrixXf ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
+				// (Ignored the swap of angles. Used just to calculate angle norm.)
+				cout<<"Angle Error: "<<ea.norm()<<endl;
+
+				// Find Position Error.
+				Matrix<float,3,1> positionError = error_mat.block(0,3,3,1);
+				cout<<"Position Error: "<<positionError.norm()<<endl;
+
+				MatrixXf modified = (R_bucket_input_valid * S).colwise() + T_bucket_input;
+
+				MatrixXf total_transf_after_ICP = bucket_refinement(&R_bucket_input_valid, &T_bucket_input, &Ns_sampled, &V, &S, &M_sampled, &tree_M_sampled, &M, &tree_M, &gt, &num_sampled_sens_points_ICP, &SigmaS, &F, &points_per_face, &ICP_or_GICP_switch_bucket, &ICP_triangle_proj_switch_bucket);
+				Bucket[iii] = total_transf_after_ICP;
+			}
+			else{
+				break;
+			}
+		}
+
+		cout<<"Code finished"<<endl;
 	}
 	catch(GRBException e){
 		cout<<"Error code = "<<e.getErrorCode()<<endl;

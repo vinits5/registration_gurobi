@@ -8,6 +8,37 @@
 using namespace std;
 using namespace Eigen;
 
+#define PI 3.14159265358979323846
+
+MatrixXf bucket_refinement(MatrixXf *R_bucket_input_valid, Matrix<float,3,1> *T_bucket_input, int *Ns_sampled, MatrixXf *V, MatrixXf *S, MatrixXf *M_sampled, KDTree *tree_M_sampled, MatrixXf *M, KDTree *tree_M, MatrixXf *gt, int *num_sampled_sens_points_ICP, MatrixXf *SigmaS, MatrixXf *F, int *points_per_face, int *ICP_or_GICP_switch_bucket, int *ICP_triangle_proj_switch_bucket){
+	MatrixXf transformed_sens_points_before_bucket = S->block(0,0,3,1000);
+	transformed_sens_points_before_bucket = ((*R_bucket_input_valid)*transformed_sens_points_before_bucket).colwise()+(*T_bucket_input);
+	
+	MatrixXf transf_ICP_output = icp_test(V, &transformed_sens_points_before_bucket, M, tree_M, M_sampled, tree_M_sampled, SigmaS, F, points_per_face, ICP_triangle_proj_switch_bucket, ICP_or_GICP_switch_bucket);	
+
+	MatrixXf transf_bucket_input = MatrixXf::Zero(4,4);
+	transf_bucket_input(3,3)=1; transf_bucket_input.block(0,0,3,3) = *R_bucket_input_valid; transf_bucket_input.block(0,3,3,1) = *T_bucket_input;
+	MatrixXf total_transf_after_bucket_refinement_S_to_M = transf_ICP_output*transf_bucket_input;
+
+	cout<<"Total Transformation After Bucket Refinement S to M: "<<total_transf_after_bucket_refinement_S_to_M<<endl;
+
+	cout<<"After Bucket Refinement: "<<endl;
+	MatrixXf error_mat = total_transf_after_bucket_refinement_S_to_M.inverse()* (*gt);
+	Matrix<float,3,3> errorMat = error_mat.block(0,0,3,3);
+	MatrixXf ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
+	// (Ignored the swap of angles. Used just to calculate angle norm.)
+	cout<<"Angle Error: "<<ea.norm()<<endl;
+
+	// Find Position Error.
+	Matrix<float,3,1> positionError = error_mat.block(0,3,3,1);
+	cout<<"Position Error: "<<positionError.norm()<<endl;
+
+	Matrix<float,3,1> total_translation_after_bucket_refinement_S_to_M = total_transf_after_bucket_refinement_S_to_M.block(0,3,3,1);
+	MatrixXf transformed_sens_pts_after_bucket_refinement = (total_transf_after_bucket_refinement_S_to_M.block(0,0,3,3)*(*S)).colwise() + total_translation_after_bucket_refinement_S_to_M;
+
+	return total_transf_after_bucket_refinement_S_to_M;
+}
+
 // Convert B matrix from (Nx6) to Nx3x3) matrix.
 vector<Matrix<float,3,3>> B_Nsx6_to_3x3(MatrixXf *B_given){
 	// Arguments:
