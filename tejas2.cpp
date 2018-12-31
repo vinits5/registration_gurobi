@@ -221,9 +221,10 @@ int main(){
 		}
 
 		int number_of_solutions = 100;
-		m.set(GRB_IntParam_PoolSolutions,number_of_solutions);
+		m.set(GRB_IntParam_PoolSolutions,number_of_solutions);		// Set PoolSolutions
 
 		MatrixXf FivePointEstimation = MatrixXf::Zero(number_of_solutions,4);
+
 		for(int iii=0; iii<number_of_solutions; iii++){
 			// Define Bucket Matrix
 			int bucket_size = m.get(GRB_IntAttr_SolCount);
@@ -236,6 +237,7 @@ int main(){
 				m.set(GRB_IntParam_SolutionNumber,iii);
 				cout<<"Bucket Number: "<<iii<<endl;
 
+				// Extract values of solution at Cb
 				MatrixXf Cb_sampled_before_bucket = MatrixXf::Zero(Ns_sampled, Nm_global);
 				for(int k=0; k<Ns_sampled; k++){
 					for(int j=0; j<Nm_global; j++){
@@ -243,6 +245,7 @@ int main(){
 					}
 				}
 
+				// Extract values of solution at R.
 				MatrixXf R_bucket_input_M_to_S = MatrixXf::Zero(3,3);
 				for(int k=0; k<3; k++){
 					for(int j=0; j<3; j++){
@@ -250,12 +253,13 @@ int main(){
 					}
 				}
 
+				// Extract values of solution at T.
 				MatrixXf T_bucket_input_M_to_S = MatrixXf::Zero(3,1);
 				for(int k=0; k<3; k++){
 					T_bucket_input_M_to_S(k,0) = T[k][0].get(GRB_DoubleAttr_Xn);
 				}
 
-				MatrixXf mat_bucket_input_M_to_S = MatrixXf::Zero(4,4);
+				MatrixXf mat_bucket_input_M_to_S = MatrixXf::Zero(4,4);			// Transformation matrix for bucket input.
 				mat_bucket_input_M_to_S(3,3)=1;
 				mat_bucket_input_M_to_S.block(0,0,3,3) = R_bucket_input_M_to_S;
 				mat_bucket_input_M_to_S.block(0,3,3,1) = T_bucket_input_M_to_S;
@@ -263,6 +267,7 @@ int main(){
 
 				MatrixXf R_bucket_input = mat_bucket_input_M_to_S.block(0,0,3,3);
 				Matrix<float,3,1> T_bucket_input = mat_bucket_input_M_to_S.block(0,3,3,1);
+				// SVD decomposition of R_bucket_input
 				JacobiSVD<MatrixXf> svd(R_bucket_input, ComputeThinU | ComputeThinV);
 				MatrixXf R_bucket_input_valid = svd.matrixU()*svd.matrixV().transpose();		// V matrix provided by eigen library is transpose of V matrix given by numpy in python.
 
@@ -287,8 +292,10 @@ int main(){
 				Matrix<float,3,1> positionError = error_mat.block(0,3,3,1);
 				cout<<"Position Error: "<<positionError.norm()<<endl;
 
+				// Modified sensor data.
 				MatrixXf modified = (R_bucket_input_valid * S).colwise() + T_bucket_input;
 
+				// call bucket refinement function to find final transformation matrix.
 				MatrixXf total_transf_after_ICP = bucket_refinement(&R_bucket_input_valid, &T_bucket_input, &Ns_sampled, &V, &S, &M_sampled, &tree_M_sampled, &M, &tree_M, &gt, &num_sampled_sens_points_ICP, &SigmaS, &F, &points_per_face, &ICP_or_GICP_switch_bucket, &ICP_triangle_proj_switch_bucket);
 				Bucket[iii] = total_transf_after_ICP;
 			}

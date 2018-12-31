@@ -59,7 +59,8 @@ void callbackMtoS::callback(){
 			// transformed_S_sampled_after_ICP = total_transf_ICP_S_to_M[0:3,0:3]*S[:,0:Ns_sampled]+temp_T_S_to_M
 			MatrixXf transformed_S_sampled_after_ICP = ((total_transf_ICP_S_to_M.block(0,0,3,3)) * ((*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled)))).colwise()+temp_T_S_to_M;
 			
-			OptVariables opt_vars_callback;
+			OptVariables opt_vars_callback;			// find optimization variables in callback.
+			// find all documentation in the helper function.
 			find_Cb(&opt_vars_callback.Cb, &transformed_S_sampled_after_ICP, callback_params->tree_M_sampled, (*(callback_params->M_global)).cols());
 			find_lam(&opt_vars_callback.lam, &total_transf_ICP_S_to_M, callback_params->num_partitions_SOS2);	// total_transf_ICP_S_to_M because this function takes inverse of given matrix and then find the lambda.
 			find_w(&opt_vars_callback.w, &opt_vars_callback.lam, callback_params->num_partitions_SOS2);
@@ -67,19 +68,21 @@ void callbackMtoS::callback(){
 			MatrixXf S_alpha_ip = (*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled));		// Input Sensor data to find_alpha function.
 			find_alpha(&opt_vars_callback.alpha, &total_transf_ICP_S_to_M, &S_alpha_ip, callback_params->M_global, &opt_vars_callback.Cb, callback_params->B);		// total_transf_ICP_S_to_M because this function takes inverse of given matrix and then find the lambda.
 			find_phi(&opt_vars_callback.phi, &opt_vars_callback.alpha);
+
 			cout<<"Phi After ICP in callback: "<<(opt_vars_callback.phi.sum())/(*(callback_params->Ns_sampled))<<endl;
 
-			MatrixXf T_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,3,3,1);
-			MatrixXf R_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,0,3,3);
+			MatrixXf T_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,3,3,1);	// find translation part.
+			MatrixXf R_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,0,3,3);	// find rotation part.
 
-			double list_T_after_ICP_M_to_S[T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()];
-			double list_R_after_ICP_M_to_S[R_after_ICP_M_to_S.cols()*R_after_ICP_M_to_S.rows()];
-			double list_Cb_sampled_after_ICP[opt_vars_callback.Cb.cols()*opt_vars_callback.Cb.rows()];
-			double list_w_after_ICP[opt_vars_callback.w.cols()*opt_vars_callback.w.rows()];
-			double list_phi_after_ICP[opt_vars_callback.phi.cols()*opt_vars_callback.phi.rows()];
-			double list_alpha_after_ICP[opt_vars_callback.alpha.cols()*opt_vars_callback.alpha.rows()];
-			double list_lam_after_ICP[opt_vars_callback.lam[0].cols()*opt_vars_callback.lam[0].rows()*opt_vars_callback.lam.size()];
+			double list_T_after_ICP_M_to_S[T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()];			// list to store translations
+			double list_R_after_ICP_M_to_S[R_after_ICP_M_to_S.cols()*R_after_ICP_M_to_S.rows()];			// list to store rotation
+			double list_Cb_sampled_after_ICP[opt_vars_callback.Cb.cols()*opt_vars_callback.Cb.rows()];		// list to store correspondences
+			double list_w_after_ICP[opt_vars_callback.w.cols()*opt_vars_callback.w.rows()];					// list to store w
+			double list_phi_after_ICP[opt_vars_callback.phi.cols()*opt_vars_callback.phi.rows()];			// list to store phi
+			double list_alpha_after_ICP[opt_vars_callback.alpha.cols()*opt_vars_callback.alpha.rows()];		// list to store alpha
+			double list_lam_after_ICP[opt_vars_callback.lam[0].cols()*opt_vars_callback.lam[0].rows()*opt_vars_callback.lam.size()];	// list to store lam
 
+			// Flatten the matrices to store in the list. (Useful for setSolution)
 			flatten_matrix(&T_after_ICP_M_to_S, list_T_after_ICP_M_to_S);
 			flatten_matrix(&R_after_ICP_M_to_S, list_R_after_ICP_M_to_S);
 			flatten_matrix(&opt_vars_callback.Cb, list_Cb_sampled_after_ICP);
@@ -90,11 +93,11 @@ void callbackMtoS::callback(){
 
 			// setSolution for T.
 			int start_count = 4*(*(callback_params->Ns_sampled));
-			GRBVar T_vars[T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()];
+			GRBVar T_vars[T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()];		// Define gurobi variables array.
 			for(int i=0; i<T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows(); i++){
-				T_vars[i]=vars[start_count+i];
+				T_vars[i]=vars[start_count+i];											// Store each variable in variable array.
 			}
-			setSolution(T_vars, list_T_after_ICP_M_to_S, (T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()));
+			setSolution(T_vars, list_T_after_ICP_M_to_S, (T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()));	// set the values of variables found in callback.
 
 			// setSolution for R.
 			start_count = 4*(*(callback_params->Ns_sampled))+3;
@@ -136,7 +139,7 @@ void callbackMtoS::callback(){
 			}
 			setSolution(lam_vars, list_lam_after_ICP, opt_vars_callback.lam[0].cols()*opt_vars_callback.lam[0].rows()*opt_vars_callback.lam.size());
 
-			double objval = useSolution();
+			double objval = useSolution();			// useSolution method.
 
 			if(objval == 1e+100){
 				sol_repeat_counter = sol_repeat_counter+1;
