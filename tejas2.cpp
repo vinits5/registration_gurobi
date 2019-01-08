@@ -18,7 +18,7 @@ int main(){
 	// Define Switches.
 	// int outlier_switch = 0;
 	int M_sampled_switch_global_optimiser = 1; 			// if 1, uses M_sampled in global optimizer 
-	int set_start_sol_switch = 2; 						// 1 sets the initial seed value using ICP/GICP 
+	int set_start_sol_switch = 1; 						// 1 sets the initial seed value using ICP/GICP 
 	int callback_switch = 1; 							// on or off
 	int ICP_or_GICP_switch_callback = 1;				// 1 for ICP, 2 for GICP
 	int ICP_triangle_proj_switch_callback = 0;			// on or off
@@ -138,7 +138,7 @@ int main(){
 		define_GRBVar(&m, &Cb_sampled[0][0], Ns_sampled, Nm_global, 0, 1, GRB_BINARY, "Cb_sampled");
 		define_3D_GRBVar(&m, &lam[0][0][0], num_partitions_SOS2, 3, 3, 0, GRB_INFINITY, GRB_CONTINUOUS, "lambda");
 
-		float q[num_partitions_SOS2];
+		double q[10];
 		linspace(&q[0],-1,1,num_partitions_SOS2);
 
 		// GRBVar o[1][Ns];
@@ -168,6 +168,20 @@ int main(){
 			OptVariables opt_vars1;
 			find_all_opt_variables(&opt_vars1, &S_NsSampled, M_global, tree_M_global, &transformation, &num_partitions_SOS2, &B);
 
+			transformation = transformation.inverse();
+
+			// #########################################################################
+			// Stopped Here.
+			// 1. Debug the values of transformation and lam. 
+			// 2. Might have to convert all variables from float to double.
+			// 3. Check the constraint LHS and RHS in python and CPP.
+			// #########################################################################
+			
+			for(int k=0; k<3; k++){
+				cout<<opt_vars1.alpha.coeff(k,0)<<",";
+			}
+			cout<<"\n";
+			cout<<opt_vars1.phi.coeff(0,0)<<endl;
 			// Provide Initial Solution.
 			provide_initialSol(&T[0][0], &R[0][0], &Cb_sampled[0][0], &lam[0][0][0], &W[0][0], &alpha[0][0], &phi[0][0], &transformation, &opt_vars1, &Ns_sampled, &Nm_global, &num_partitions_SOS2);
 		}

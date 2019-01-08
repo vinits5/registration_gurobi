@@ -174,7 +174,7 @@ void find_lam(vector<Matrix<float,3,3>> *lam, MatrixXf *gt, int *num_partitions_
 	for(int i=0; i<*num_partitions_SOS2; i++){
 		lam->push_back(Matrix<float,3,3>::Zero());			// Initialize zero matrices in each element of array.
 	}
-	float q[*num_partitions_SOS2];
+	double q[*num_partitions_SOS2];
 	linspace(&q[0], -1, 1, *num_partitions_SOS2);	// function similar to np.linspace() in python.
 	// Check condition and set the values of lamda parameter.
 	for(int i=0; i<3; i++){
@@ -201,7 +201,7 @@ void find_w(Matrix<float,3,3> *w, vector<Matrix<float,3,3>> *lam, int *num_parti
 	// Output:
 		// w:					Pointer of the matrix w_start (3 x 3)
 
-	float q[*num_partitions_SOS2];
+	double q[*num_partitions_SOS2];
 	linspace(&q[0], -1, 1, *num_partitions_SOS2);	// function similar to np.linspace() in python.
 	for(int i=0; i<3; i++){
 		for(int j=0; j<3; j++){
@@ -249,7 +249,7 @@ void flatten_w(Matrix<float,3,3> *ip_matrix, double *op_array){
 }
 
 // function similar to numpy.linspace
-void linspace(float *result_array, int lower_value, int upper_value, int size){
+void linspace(double *result_array, int lower_value, int upper_value, int size){
 	// Arguments:
 		// result_array: 	Pointer of first element of result array.
 		// lower_value:		Starting value.
@@ -257,7 +257,7 @@ void linspace(float *result_array, int lower_value, int upper_value, int size){
 		// size:			Size of the array.
 
 	for(int i=0; i<size; i++){
-		*(result_array+i)=lower_value + i*((float)(upper_value - lower_value)/(size-1));
+		*(result_array+i)=lower_value + i*((double)(upper_value - lower_value)/(size-1));
 	}
 }
 

@@ -43,7 +43,7 @@ void flatten_vector(vector<Matrix<float,3,3>> *, double *);
 
 void flatten_w(Matrix<float,3,3> *, double *);
 
-void linspace(float *,int, int, int);
+void linspace(double *,int, int, int);
 
 void printMatrixSize(MatrixXf *);
 

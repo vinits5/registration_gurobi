@@ -182,7 +182,7 @@ void define_RConstr(GRBModel *model, GRBVar *var, MatrixXf *gt){
 	}
 }
 
-void define_SOSConstr(GRBModel *model, GRBVar *var, GRBVar *R, GRBVar *W, float *q, int *num_partitions_SOS2){
+void define_SOSConstr(GRBModel *model, GRBVar *var, GRBVar *R, GRBVar *W, double *q, int *num_partitions_SOS2){
 	// Arguments:
 		// model:					Gurobi Model
 		// var:						lambda (num_partitions_SOS2 x 3 x 3)
@@ -263,7 +263,7 @@ void define_WConstr(GRBModel *model, GRBVar *var){
 }
 
 // Define Gurobi Variables in 3D Array.
-void define_3D_GRBVar(GRBModel *model, GRBVar *var, int row_size, int col_size, int dim3_size, long double lb, long double ub, char dtype, string name){
+void define_3D_GRBVar(GRBModel *model, GRBVar *var, int dim3_size, int col_size, int row_size, long double lb, long double ub, char dtype, string name){
 	// Arguments
 		// model: 							Pointer of the Gurobi Model.
 		// var:								Pointer of the first element of the array of Gurobi Variables.

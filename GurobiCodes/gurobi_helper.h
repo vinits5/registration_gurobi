@@ -19,7 +19,7 @@ void define_phiConstr(GRBModel *, GRBVar *, GRBVar *, int *);
 
 void define_RConstr(GRBModel *, GRBVar *, MatrixXf *);
 
-void define_SOSConstr(GRBModel *, GRBVar *, GRBVar *, GRBVar *, float *, int *);
+void define_SOSConstr(GRBModel *, GRBVar *, GRBVar *, GRBVar *, double *, int *);
 
 void define_SOS2Constr(GRBModel *, GRBVar *);
 
