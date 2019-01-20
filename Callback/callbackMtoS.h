@@ -17,17 +17,17 @@ using namespace Eigen;
 // Structure for parameters need for callback function of Gurobi.
 struct Params{
 	int *Ns_sampled;						// Points in Model Data
-	MatrixXf *S;							// 3 x Ns
+	MatrixXd *S;							// 3 x Ns
 	int *num_sampled_sens_points_ICP;		
-	MatrixXf *V;							// 3 x Nv
-	MatrixXf *M;							// 3 x Nm
+	MatrixXd *V;							// 3 x Nv
+	MatrixXd *M;							// 3 x Nm
 	KDTree *tree_M;							// KD Tree of Model Points
-	MatrixXf *M_sampled;					// 3 x Ns_sampled 
+	MatrixXd *M_sampled;					// 3 x Ns_sampled 
 	KDTree *tree_M_sampled;					// KD tree of sampled points
-	MatrixXf *SigmaS;						// n x 6
-	MatrixXf *F;							// Nf x Nm
-	vector<Matrix<float,3,3>> *B;
-	MatrixXf *M_global;
+	MatrixXd *SigmaS;						// n x 6
+	MatrixXd *F;							// Nf x Nm
+	vector<Matrix<double,3,3>> *B;
+	MatrixXd *M_global;
 	int *num_partitions_SOS2;
 	int *points_per_face;					// Nf / Nm
 	int *ICP_triangle_proj_switch_callback;	

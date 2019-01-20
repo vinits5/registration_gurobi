@@ -9,10 +9,10 @@ callbackMtoS::callbackMtoS(GRBModel *m, Params *params){
 void callbackMtoS::callback(){
 	// cout<<"Im callback"<<endl;
 	if(sol_repeat_counter<100){
-		Matrix<float,3,1> T_init_ICP;
-		Matrix<float,3,3> temp_R;
-		Matrix<float,3,3> R_final;
-		Matrix<float,1,3> T_final;
+		Matrix<double,3,1> T_init_ICP;
+		Matrix<double,3,3> temp_R;
+		Matrix<double,3,3> R_final;
+		Matrix<double,1,3> T_final;
 
 		if(where==GRB_CB_MIPNODE){
 			int numvars = model->get(GRB_IntAttr_NumVars);
@@ -26,15 +26,15 @@ void callbackMtoS::callback(){
 				temp_R(2,l) = sol_at_node[i+9];
 				l = l+1;
 			}
-			JacobiSVD<MatrixXf> svd(temp_R, ComputeThinU | ComputeThinV);	// Computes U,Vt.T,diagonal of Sigma Matrices.
-			MatrixXf R_init_ICP = svd.matrixU()*svd.matrixV().transpose();
+			JacobiSVD<MatrixXd> svd(temp_R, ComputeThinU | ComputeThinV);	// Computes U,Vt.T,diagonal of Sigma Matrices.
+			MatrixXd R_init_ICP = svd.matrixU()*svd.matrixV().transpose();
 			if(R_init_ICP.determinant()<0){
-				MatrixXf temp = svd.matrixV();
+				MatrixXd temp = svd.matrixV();
 				temp(0,2)=-1*temp(0,2); temp(1,2)=-1*temp(1,2); temp(2,2)=-1*temp(2,2);
 				R_init_ICP = svd.matrixU()*temp.transpose();
 			}
 
-			Matrix<float,4,4> temp_transf_mat = MatrixXf::Zero(4,4);
+			Matrix<double,4,4> temp_transf_mat = MatrixXd::Zero(4,4);
 			temp_transf_mat.block(0,0,3,3)=R_init_ICP;
 			temp_transf_mat.block(0,3,3,1)=T_init_ICP;
 			temp_transf_mat(3,3) = 1;
@@ -44,20 +44,20 @@ void callbackMtoS::callback(){
 			T_init_ICP = temp_transf_mat.inverse().block(0,3,3,1);
 
 			// transformed_for_ICP = R_init_ICP * S[:,num_sampled_sens_points_ICP] + T_init_ICP
-			MatrixXf transformed_for_ICP = (R_init_ICP*((*(callback_params->S)).block(0,0,3,*(callback_params->num_sampled_sens_points_ICP)))).colwise()+T_init_ICP;
+			MatrixXd transformed_for_ICP = (R_init_ICP*((*(callback_params->S)).block(0,0,3,*(callback_params->num_sampled_sens_points_ICP)))).colwise()+T_init_ICP;
 
 			// Run ICP on the transformed sensor data and model points.
-			MatrixXf transf_ICP_output = icp_test(callback_params->V, &transformed_for_ICP, callback_params->M, callback_params->tree_M, callback_params->M_sampled, callback_params->tree_M_sampled, callback_params->SigmaS, callback_params->F, callback_params->points_per_face, callback_params->ICP_triangle_proj_switch_callback, callback_params->ICP_or_GICP_switch_callback);
+			MatrixXd transf_ICP_output = icp_test(callback_params->V, &transformed_for_ICP, callback_params->M, callback_params->tree_M, callback_params->M_sampled, callback_params->tree_M_sampled, callback_params->SigmaS, callback_params->F, callback_params->points_per_face, callback_params->ICP_triangle_proj_switch_callback, callback_params->ICP_or_GICP_switch_callback);
 
 			// Transformation Matrix from Sensor to Model: (R_ICP_output,T_ICP_output)*(R_init_ICP,T_init_ICP)
-			MatrixXf total_transf_ICP_S_to_M = transf_ICP_output*temp_transf_mat;
+			MatrixXd total_transf_ICP_S_to_M = transf_ICP_output*temp_transf_mat;
 
 			// Input to global optimizer.
-			MatrixXf total_transf_ICP_M_to_S = total_transf_ICP_S_to_M.inverse();
+			MatrixXd total_transf_ICP_M_to_S = total_transf_ICP_S_to_M.inverse();
 
-			Matrix<float,3,1> temp_T_S_to_M = total_transf_ICP_S_to_M.block(0,3,3,1);	// Translation part from Sensor to Model.
+			Matrix<double,3,1> temp_T_S_to_M = total_transf_ICP_S_to_M.block(0,3,3,1);	// Translation part from Sensor to Model.
 			// transformed_S_sampled_after_ICP = total_transf_ICP_S_to_M[0:3,0:3]*S[:,0:Ns_sampled]+temp_T_S_to_M
-			MatrixXf transformed_S_sampled_after_ICP = ((total_transf_ICP_S_to_M.block(0,0,3,3)) * ((*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled)))).colwise()+temp_T_S_to_M;
+			MatrixXd transformed_S_sampled_after_ICP = ((total_transf_ICP_S_to_M.block(0,0,3,3)) * ((*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled)))).colwise()+temp_T_S_to_M;
 			
 			OptVariables opt_vars_callback;			// find optimization variables in callback.
 			// find all documentation in the helper function.
@@ -65,14 +65,14 @@ void callbackMtoS::callback(){
 			find_lam(&opt_vars_callback.lam, &total_transf_ICP_S_to_M, callback_params->num_partitions_SOS2);	// total_transf_ICP_S_to_M because this function takes inverse of given matrix and then find the lambda.
 			find_w(&opt_vars_callback.w, &opt_vars_callback.lam, callback_params->num_partitions_SOS2);
 
-			MatrixXf S_alpha_ip = (*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled));		// Input Sensor data to find_alpha function.
+			MatrixXd S_alpha_ip = (*(callback_params->S)).block(0,0,3,*(callback_params->Ns_sampled));		// Input Sensor data to find_alpha function.
 			find_alpha(&opt_vars_callback.alpha, &total_transf_ICP_S_to_M, &S_alpha_ip, callback_params->M_global, &opt_vars_callback.Cb, callback_params->B);		// total_transf_ICP_S_to_M because this function takes inverse of given matrix and then find the lambda.
 			find_phi(&opt_vars_callback.phi, &opt_vars_callback.alpha);
 
 			cout<<"Phi After ICP in callback: "<<(opt_vars_callback.phi.sum())/(*(callback_params->Ns_sampled))<<endl;
 
-			MatrixXf T_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,3,3,1);	// find translation part.
-			MatrixXf R_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,0,3,3);	// find rotation part.
+			MatrixXd T_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,3,3,1);	// find translation part.
+			MatrixXd R_after_ICP_M_to_S = total_transf_ICP_M_to_S.block(0,0,3,3);	// find rotation part.
 
 			double list_T_after_ICP_M_to_S[T_after_ICP_M_to_S.cols()*T_after_ICP_M_to_S.rows()];			// list to store translations
 			double list_R_after_ICP_M_to_S[R_after_ICP_M_to_S.cols()*R_after_ICP_M_to_S.rows()];			// list to store rotation

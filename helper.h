@@ -12,44 +12,44 @@ using namespace std;
 using namespace Eigen;
 
 struct OptVariables{
-	MatrixXf Cb;						// (Ns x Nm)
-	vector<Matrix<float,3,3>> lam;		// (num_partitions_SOS2 x 3 x 3)
-	Matrix<float,3,3> w;				
-	MatrixXf alpha;						// (3 x Ns)
-	MatrixXf phi;						// (1 x Ns)
+	MatrixXd Cb;						// (Ns x Nm)
+	vector<Matrix<double,3,3>> lam;		// (num_partitions_SOS2 x 3 x 3)
+	Matrix<double,3,3> w;				
+	MatrixXd alpha;						// (3 x Ns)
+	MatrixXd phi;						// (1 x Ns)
 };
 
-MatrixXf bucket_refinement(MatrixXf *, Matrix<float,3,1> *, int *, MatrixXf *, MatrixXf *, MatrixXf *, KDTree *, MatrixXf *, KDTree *, MatrixXf *, int *, MatrixXf *, MatrixXf *, int *, int *, int *);
+MatrixXd bucket_refinement(MatrixXd *, Matrix<double,3,1> *, int *, MatrixXd *, MatrixXd *, MatrixXd *, KDTree *, MatrixXd *, KDTree *, MatrixXd *, int *, MatrixXd *, MatrixXd *, int *, int *, int *);
 
-vector<Matrix<float,3,3>> B_Nsx6_to_3x3(MatrixXf *);
+vector<Matrix<double,3,3>> B_Nsx6_to_3x3(MatrixXd *);
 
 void data_shape(string, int *, int *);
 
-void find_all_opt_variables(OptVariables *, MatrixXf *, MatrixXf *, KDTree *, MatrixXf *, int *, vector<Matrix<float,3,3>> *);
+void find_all_opt_variables(OptVariables *, MatrixXd *, MatrixXd *, KDTree *, MatrixXd *, int *, vector<Matrix<double,3,3>> *);
 
-void find_alpha(MatrixXf *, MatrixXf *, MatrixXf *,MatrixXf *, MatrixXf *, vector<Matrix<float,3,3>> *);
+void find_alpha(MatrixXd *, MatrixXd *, MatrixXd *,MatrixXd *, MatrixXd *, vector<Matrix<double,3,3>> *);
 
-void find_Cb(MatrixXf *, MatrixXf *, KDTree *, int);
+void find_Cb(MatrixXd *, MatrixXd *, KDTree *, int);
 
-void find_lam(vector<Matrix<float,3,3>> *, MatrixXf *, int *);
+void find_lam(vector<Matrix<double,3,3>> *, MatrixXd *, int *);
 
-void find_phi(MatrixXf *, MatrixXf *);
+void find_phi(MatrixXd *, MatrixXd *);
 
-void find_w(Matrix<float,3,3> *, vector<Matrix<float,3,3>> *, int *);
+void find_w(Matrix<double,3,3> *, vector<Matrix<double,3,3>> *, int *);
 
-void flatten_matrix(MatrixXf *, double *);
+void flatten_matrix(MatrixXd *, double *);
 
-void flatten_vector(vector<Matrix<float,3,3>> *, double *);
+void flatten_vector(vector<Matrix<double,3,3>> *, double *);
 
-void flatten_w(Matrix<float,3,3> *, double *);
+void flatten_w(Matrix<double,3,3> *, double *);
 
 void linspace(double *,int, int, int);
 
-void printMatrixSize(MatrixXf *);
+void printMatrixSize(MatrixXd *);
 
-MatrixXf read_file(string);
+MatrixXd read_file(string);
 
-void sampleModelPoints(MatrixXf *, MatrixXf *, int *);
+void sampleModelPoints(MatrixXd *, MatrixXd *, int *);
 
 
 #endif

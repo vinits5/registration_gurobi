@@ -5,30 +5,30 @@
 using namespace Eigen;
 
 struct Transformation{
-	Matrix<float,3,3> rotation_matrix;
-	Matrix<float,3,1> translation;
+	Matrix<double,3,3> rotation_matrix;
+	Matrix<double,3,1> translation;
 };
 
 struct ICP_Result{
-	Matrix<float,4,4> g;
-	// MatrixXf p;
-	float error;
-	// MatrixXf target;
+	Matrix<double,4,4> g;
+	// MatrixXd p;
+	double error;
+	// MatrixXd target;
 };
 
-MatrixXf icp_test(MatrixXf *, MatrixXf *, MatrixXf *, KDTree *, MatrixXf *, KDTree *, MatrixXf *, 
-	MatrixXf *, int *, int *, int *);
+MatrixXd icp_test(MatrixXd *, MatrixXd *, MatrixXd *, KDTree *, MatrixXd *, KDTree *, MatrixXd *, 
+	MatrixXd *, int *, int *, int *);
 
 class ICP{
 public:
-	MatrixXf *p0_ICP,*p1_ICP,*SigmaS_ICP;
+	MatrixXd *p0_ICP,*p1_ICP,*SigmaS_ICP;
 	KDTree *tree_M_sampled_ICP;
 
-	ICP(MatrixXf*, MatrixXf*, KDTree*, MatrixXf*);
+	ICP(MatrixXd*, MatrixXd*, KDTree*, MatrixXd*);
 
 	ICP_Result compute(int);
 
-	Transformation find_rigid_transform(MatrixXf*, MatrixXf*);
-	Matrix<float,4,4> icp_Rt_to_matrix(Transformation);
+	Transformation find_rigid_transform(MatrixXd*, MatrixXd*);
+	Matrix<double,4,4> icp_Rt_to_matrix(Transformation);
 };
 #endif

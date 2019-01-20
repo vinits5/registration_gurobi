@@ -11,7 +11,7 @@ using namespace Eigen;
 #define PI 3.14159265358979323846
 
 // Bucket Refinement after optimization using ICP.
-MatrixXf bucket_refinement(MatrixXf *R_bucket_input_valid, Matrix<float,3,1> *T_bucket_input, int *Ns_sampled, MatrixXf *V, MatrixXf *S, MatrixXf *M_sampled, KDTree *tree_M_sampled, MatrixXf *M, KDTree *tree_M, MatrixXf *gt, int *num_sampled_sens_points_ICP, MatrixXf *SigmaS, MatrixXf *F, int *points_per_face, int *ICP_or_GICP_switch_bucket, int *ICP_triangle_proj_switch_bucket){
+MatrixXd bucket_refinement(MatrixXd *R_bucket_input_valid, Matrix<double,3,1> *T_bucket_input, int *Ns_sampled, MatrixXd *V, MatrixXd *S, MatrixXd *M_sampled, KDTree *tree_M_sampled, MatrixXd *M, KDTree *tree_M, MatrixXd *gt, int *num_sampled_sens_points_ICP, MatrixXd *SigmaS, MatrixXd *F, int *points_per_face, int *ICP_or_GICP_switch_bucket, int *ICP_triangle_proj_switch_bucket){
 	// Arguments:
 		// R_bucket_input_valid:		rotation matrix (3 x 3)
 		// T_bucket_input:				translation Matrix (3 x 1)
@@ -27,45 +27,45 @@ MatrixXf bucket_refinement(MatrixXf *R_bucket_input_valid, Matrix<float,3,1> *T_
 	// Output:
 		// total_transf_after_bucket_refinement_S_to_M:		Final transformation matrix after bucket refinement (4 x 4)
 
-	MatrixXf transformed_sens_points_before_bucket = S->block(0,0,3,1000);		// Sample Sensor Points S[:,0:1000]
+	MatrixXd transformed_sens_points_before_bucket = S->block(0,0,3,1000);		// Sample Sensor Points S[:,0:1000]
 	transformed_sens_points_before_bucket = ((*R_bucket_input_valid)*transformed_sens_points_before_bucket).colwise()+(*T_bucket_input);		// Apply transformation on sampled sensor points.
 	
 	// Call ICP
-	MatrixXf transf_ICP_output = icp_test(V, &transformed_sens_points_before_bucket, M, tree_M, M_sampled, tree_M_sampled, SigmaS, F, points_per_face, ICP_triangle_proj_switch_bucket, ICP_or_GICP_switch_bucket);	
+	MatrixXd transf_ICP_output = icp_test(V, &transformed_sens_points_before_bucket, M, tree_M, M_sampled, tree_M_sampled, SigmaS, F, points_per_face, ICP_triangle_proj_switch_bucket, ICP_or_GICP_switch_bucket);	
 
-	MatrixXf transf_bucket_input = MatrixXf::Zero(4,4);			// transformation for bucket input.
+	MatrixXd transf_bucket_input = MatrixXd::Zero(4,4);			// transformation for bucket input.
 	transf_bucket_input(3,3)=1; transf_bucket_input.block(0,0,3,3) = *R_bucket_input_valid; transf_bucket_input.block(0,3,3,1) = *T_bucket_input;
-	MatrixXf total_transf_after_bucket_refinement_S_to_M = transf_ICP_output*transf_bucket_input;	// final transformation after bucket refinement.
+	MatrixXd total_transf_after_bucket_refinement_S_to_M = transf_ICP_output*transf_bucket_input;	// final transformation after bucket refinement.
 
 	cout<<"Total Transformation After Bucket Refinement S to M: "<<total_transf_after_bucket_refinement_S_to_M<<endl;
 
 	cout<<"After Bucket Refinement: "<<endl;
-	MatrixXf error_mat = total_transf_after_bucket_refinement_S_to_M.inverse()* (*gt);			// Find error matrix.
-	Matrix<float,3,3> errorMat = error_mat.block(0,0,3,3);
-	MatrixXf ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
+	MatrixXd error_mat = total_transf_after_bucket_refinement_S_to_M.inverse()* (*gt);			// Find error matrix.
+	Matrix<double,3,3> errorMat = error_mat.block(0,0,3,3);
+	MatrixXd ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
 	// (Ignored the swap of angles. Used just to calculate angle norm.)
 	cout<<"Angle Error: "<<ea.norm()<<endl;
 
 	// Find Position Error.
-	Matrix<float,3,1> positionError = error_mat.block(0,3,3,1);
+	Matrix<double,3,1> positionError = error_mat.block(0,3,3,1);
 	cout<<"Position Error: "<<positionError.norm()<<endl;
 
-	Matrix<float,3,1> total_translation_after_bucket_refinement_S_to_M = total_transf_after_bucket_refinement_S_to_M.block(0,3,3,1);
-	MatrixXf transformed_sens_pts_after_bucket_refinement = (total_transf_after_bucket_refinement_S_to_M.block(0,0,3,3)*(*S)).colwise() + total_translation_after_bucket_refinement_S_to_M;		// Apply final transformation on sensor data.
+	Matrix<double,3,1> total_translation_after_bucket_refinement_S_to_M = total_transf_after_bucket_refinement_S_to_M.block(0,3,3,1);
+	MatrixXd transformed_sens_pts_after_bucket_refinement = (total_transf_after_bucket_refinement_S_to_M.block(0,0,3,3)*(*S)).colwise() + total_translation_after_bucket_refinement_S_to_M;		// Apply final transformation on sensor data.
 
 	return total_transf_after_bucket_refinement_S_to_M;
 }
 
 // Convert B matrix from (Nx6) to Nx3x3) matrix.
-vector<Matrix<float,3,3>> B_Nsx6_to_3x3(MatrixXf *B_given){
+vector<Matrix<double,3,3>> B_Nsx6_to_3x3(MatrixXd *B_given){
 	// Arguments:
 		// B_given:		Matrix from B.txt file. (Nx6)
 	// Output:
 		// B_return:	Convert it to (Nx3x3)
 
-	vector<Matrix<float,3,3>> B_return;										// Vector to store 3x3 matrices.
+	vector<Matrix<double,3,3>> B_return;										// Vector to store 3x3 matrices.
 	for(int i=0; i<B_given->rows(); i++){
-		Matrix<float,3,3> temp = MatrixXf::Zero(3,3);						// Temporary vector to store each 3x3 matrix.
+		Matrix<double,3,3> temp = MatrixXd::Zero(3,3);						// Temporary vector to store each 3x3 matrix.
 
 		// B_given[i]:		[a,b,c,d,e,f]
 		// B_return[i]:		[[a,b,c],
@@ -105,7 +105,7 @@ void data_shape(string file_name, int *row_size, int *col_size){
 }
 
 // Define the use of this function by looking at code.
-void find_all_opt_variables(OptVariables *opt_vars, MatrixXf *S, MatrixXf *M, KDTree *tree_M, MatrixXf *gt, int *num_partitions_SOS2, vector<Matrix<float,3,3>> *B){
+void find_all_opt_variables(OptVariables *opt_vars, MatrixXd *S, MatrixXd *M, KDTree *tree_M, MatrixXd *gt, int *num_partitions_SOS2, vector<Matrix<double,3,3>> *B){
 	// Arguments:
 		// S: 			Pointer of Sensor Data (3 x Ns)
 		// M:			Pointer of Model Data (3 x Nm)
@@ -116,8 +116,8 @@ void find_all_opt_variables(OptVariables *opt_vars, MatrixXf *S, MatrixXf *M, KD
 	printMatrixSize(S);
 	printMatrixSize(M);
 	printMatrixSize(gt);
-	Matrix<float,3,1> translation = gt->block(0,3,3,1);
-	MatrixXf transformed_sens_pts = (gt->block(0,0,3,3)*(*S)).colwise()+translation;	// Transform the sensor points (R*S+t) (3xNs)
+	Matrix<double,3,1> translation = gt->block(0,3,3,1);
+	MatrixXd transformed_sens_pts = (gt->block(0,0,3,3)*(*S)).colwise()+translation;	// Transform the sensor points (R*S+t) (3xNs)
 	find_Cb(&(opt_vars->Cb), &transformed_sens_pts, tree_M, M->cols());		// Function to find correspondences.
 	find_lam(&(opt_vars->lam), gt, num_partitions_SOS2);
 	find_w(&(opt_vars->w), &(opt_vars->lam), num_partitions_SOS2);
@@ -126,7 +126,7 @@ void find_all_opt_variables(OptVariables *opt_vars, MatrixXf *S, MatrixXf *M, KD
 }
 
 // Fucntion to find alpha 
-void find_alpha(MatrixXf *alpha, MatrixXf *gt, MatrixXf *S, MatrixXf *M, MatrixXf *Cb , vector<Matrix<float,3,3>> *B){
+void find_alpha(MatrixXd *alpha, MatrixXd *gt, MatrixXd *S, MatrixXd *M, MatrixXd *Cb , vector<Matrix<double,3,3>> *B){
 	// Arguments:
 		// gt: 		Pointer of ground truth transformation (4 x 4)
 		// S:		Pointer of Sensor Point Cloud (3 x Ns)
@@ -136,8 +136,8 @@ void find_alpha(MatrixXf *alpha, MatrixXf *gt, MatrixXf *S, MatrixXf *M, MatrixX
 	// Output:
 		// alpha:	Alpha parameter (3 x Ns)
 
-	MatrixXf gt_inv = gt->inverse();
-	*alpha = MatrixXf::Zero(3,S->cols());
+	MatrixXd gt_inv = gt->inverse();
+	*alpha = MatrixXd::Zero(3,S->cols());
 	for(int i=0; i<S->cols(); i++){
 		// This part is very slow in computation (even slower than python in my PC. Discuss it!!!)
 		alpha->col(i)=(*B)[i]*(S->col(i)-gt_inv.block(0,3,3,1)-((gt_inv.block(0,0,3,3)*(*M))*(Cb->row(i)).transpose()));
@@ -146,14 +146,14 @@ void find_alpha(MatrixXf *alpha, MatrixXf *gt, MatrixXf *S, MatrixXf *M, MatrixX
 }
 
 // Function to find Correspondences Matrix.
-void find_Cb(MatrixXf *Cb, MatrixXf *transformed_sens_pts, KDTree *tree_M, int Cb_cols){
+void find_Cb(MatrixXd *Cb, MatrixXd *transformed_sens_pts, KDTree *tree_M, int Cb_cols){
 	// Arguments:
 		// transfomed_sens_pts:		Pointer of Transformed Sensor Points (3xN)
 		// tree_M:					KD-Tree of Model Points
 	// Output:
 		// Cb:						Binary Output matrix for correspondences. (Ns x Nm)
 
-	*Cb = MatrixXf::Zero(transformed_sens_pts->cols(),Cb_cols);	// Define a matrix for binary correspondences. (Ns x Nm)
+	*Cb = MatrixXd::Zero(transformed_sens_pts->cols(),Cb_cols);	// Define a matrix for binary correspondences. (Ns x Nm)
 	PointCloud sensor_ptCloud = transformed_sens_pts->cast<long double>();		// Store the sensor points to PointCloud datatype.
 	MatrixXld neighbours = kd_search_targets(&sensor_ptCloud, *tree_M);			// Find Neighbouring points and their indices.
 	for(int i=0; i<neighbours.cols(); i++){
@@ -162,7 +162,7 @@ void find_Cb(MatrixXf *Cb, MatrixXf *transformed_sens_pts, KDTree *tree_M, int C
 }
 
 // Find lambda value
-void find_lam(vector<Matrix<float,3,3>> *lam, MatrixXf *gt, int *num_partitions_SOS2){
+void find_lam(vector<Matrix<double,3,3>> *lam, MatrixXd *gt, int *num_partitions_SOS2){
 	// Arguments:
 		// gt:					Pointer of the groud truth tranformation. (4x4)
 		// num_partitions_SOS2:	Size of the lambda array.
@@ -170,9 +170,9 @@ void find_lam(vector<Matrix<float,3,3>> *lam, MatrixXf *gt, int *num_partitions_
 		// lam:					Name of the lamda array to store lambda matrices (num_partitions_SOS2 x 3 x 3)
 
 	lam->clear();									// Remove all previous elements in the vector.
-	MatrixXf gt_inv = gt->inverse();				// Find the inverse of ground truth rotation matrix.
+	MatrixXd gt_inv = gt->inverse();				// Find the inverse of ground truth rotation matrix.
 	for(int i=0; i<*num_partitions_SOS2; i++){
-		lam->push_back(Matrix<float,3,3>::Zero());			// Initialize zero matrices in each element of array.
+		lam->push_back(Matrix<double,3,3>::Zero());			// Initialize zero matrices in each element of array.
 	}
 	double q[*num_partitions_SOS2];
 	linspace(&q[0], -1, 1, *num_partitions_SOS2);	// function similar to np.linspace() in python.
@@ -189,12 +189,12 @@ void find_lam(vector<Matrix<float,3,3>> *lam, MatrixXf *gt, int *num_partitions_
 	}
 }
 
-void find_phi(MatrixXf *phi, MatrixXf *alpha){
+void find_phi(MatrixXd *phi, MatrixXd *alpha){
 	*phi = (alpha->colwise()).sum();
 }
 
 // Function to find W parameter.
-void find_w(Matrix<float,3,3> *w, vector<Matrix<float,3,3>> *lam, int *num_partitions_SOS2){
+void find_w(Matrix<double,3,3> *w, vector<Matrix<double,3,3>> *lam, int *num_partitions_SOS2){
 	// Arguments:
 		// lam:					Pointer of the lamda array (only name of array from main function) (num_partitions_SOS2 x 3 x 3)
 		// num_partitions_SOS2:	Size of the lambda array & q linspace.
@@ -205,7 +205,7 @@ void find_w(Matrix<float,3,3> *w, vector<Matrix<float,3,3>> *lam, int *num_parti
 	linspace(&q[0], -1, 1, *num_partitions_SOS2);	// function similar to np.linspace() in python.
 	for(int i=0; i<3; i++){
 		for(int j=0; j<3; j++){
-			float sum = 0;
+			double sum = 0;
 			for(int k=0; k<*num_partitions_SOS2; k++){
 				sum = sum + (*lam)[k](i,j)*q[k]*q[k];
 			}
@@ -215,7 +215,7 @@ void find_w(Matrix<float,3,3> *w, vector<Matrix<float,3,3>> *lam, int *num_parti
 }
 
 // Flatten the 2D matrix row by row in an array.
-void flatten_matrix(MatrixXf *ip_matrix, double *op_array){
+void flatten_matrix(MatrixXd *ip_matrix, double *op_array){
 	int counter = 0;
 	for(int i=0; i<ip_matrix->rows(); i++){
 		for(int j=0; j<ip_matrix->cols(); j++){
@@ -225,7 +225,7 @@ void flatten_matrix(MatrixXf *ip_matrix, double *op_array){
 	}
 }
 
-void flatten_vector(vector<Matrix<float,3,3>> *ip_vector, double *op_array){
+void flatten_vector(vector<Matrix<double,3,3>> *ip_vector, double *op_array){
 	int counter = 0;
 	for(int i=0; i<(int)(ip_vector->size()); i++){
 		for(int j=0; j<(*ip_vector)[0].rows(); j++){
@@ -238,7 +238,7 @@ void flatten_vector(vector<Matrix<float,3,3>> *ip_vector, double *op_array){
 }
 
 // Flatten the w matrix of fix size row by row in an array.
-void flatten_w(Matrix<float,3,3> *ip_matrix, double *op_array){
+void flatten_w(Matrix<double,3,3> *ip_matrix, double *op_array){
 	int counter = 0;
 	for(int i=0; i<ip_matrix->rows(); i++){
 		for(int j=0; j<ip_matrix->cols(); j++){
@@ -262,7 +262,7 @@ void linspace(double *result_array, int lower_value, int upper_value, int size){
 }
 
 // Just to check the size of given matrix.
-void printMatrixSize(MatrixXf *mat){
+void printMatrixSize(MatrixXd *mat){
 	// Just to save memory give the address of matrix.
 	// mat->rows()		mat: Matrix class in Eigen library & rows() is a function in that class. 
 	// calling function of a pointer needs arrow(->) operator.
@@ -270,7 +270,7 @@ void printMatrixSize(MatrixXf *mat){
 }
 
 // Function to read given file and return data as a Matrix in Eigen library.
-MatrixXf read_file(string file_name){
+MatrixXd read_file(string file_name){
 	// Args.
 	// file_name: name of file in string.
 	// Output
@@ -278,7 +278,7 @@ MatrixXf read_file(string file_name){
 
 	int row_size=0,col_size=0;						// to define shape of matrix.
 	data_shape(file_name,&row_size,&col_size);		// to find shape of matrix.
-	MatrixXf data(row_size,col_size);				// define a matrix.
+	MatrixXd data(row_size,col_size);				// define a matrix.
 	ifstream file(file_name);						// read the file.
 	string x;										// to store the string from the file.
 	for(int i=0; i<row_size; i++){					// loop to read rows.
@@ -289,7 +289,7 @@ MatrixXf read_file(string file_name){
 			else{									// delimiter is '\n' if it is the last column.
 				getline(file,x,'\n');				// store the string in x.
 			}
-			data(i,j) = stof(x);					// convert string to float value in matrix.
+			data(i,j) = stod(x);					// convert string to float value in matrix.
 		}
 	}
 	file.close();									// close the file.
@@ -297,7 +297,7 @@ MatrixXf read_file(string file_name){
 }
 
 // Sample model points after certain interval.
-void sampleModelPoints(MatrixXf *M, MatrixXf *M_sampled, int *num_sampled_model_points){
+void sampleModelPoints(MatrixXd *M, MatrixXd *M_sampled, int *num_sampled_model_points){
 	// Args.
 	// M:				 			Model points (3xN)
 	// M_sampled: 					Sampled Model Points (3xN1)

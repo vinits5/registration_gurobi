@@ -19,7 +19,7 @@ int main(){
 	// int outlier_switch = 0;
 	int M_sampled_switch_global_optimiser = 1; 			// if 1, uses M_sampled in global optimizer 
 	int set_start_sol_switch = 1; 						// 1 sets the initial seed value using ICP/GICP 
-	int callback_switch = 1; 							// on or off
+	int callback_switch = 0; 							// on or off
 	int ICP_or_GICP_switch_callback = 1;				// 1 for ICP, 2 for GICP
 	int ICP_triangle_proj_switch_callback = 0;			// on or off
 	int ICP_or_GICP_switch_bucket = 1;					// 1 for ICP, 2 for GICP
@@ -27,26 +27,26 @@ int main(){
 	int alpha_switch = 1;								// for alpha switch with sigma.
 
 	// Define Constants
-	int Ns_sampled = 20;								// fewer sensor points for optimization 
+	int Ns_sampled = 5;								// fewer sensor points for optimization 
 	int num_sampled_sens_points_ICP = 500;
-	int approx_sampled_model_points = 20;
+	int approx_sampled_model_points = 5;
 
 	// Read the data from text files.
-	MatrixXf S = read_file("datasets/dragon_6000_noisy/S.txt"); 			// file is nx3  (S_given)
-	MatrixXf St = read_file("datasets/dragon_6000_noisy/St.txt");			// file is nx3 	(St_given)
-	MatrixXf V = read_file("datasets/dragon_6000_noisy/M.txt"); 			// file is nx3 	(V_given)
-	MatrixXf M = read_file("datasets/dragon_6000_noisy/Msampled.txt"); 		// file is nx3 	(M_given)
-	MatrixXf gt = read_file("datasets/dragon_6000_noisy/gt.txt");			// file is 4x4  (gt_given)
-	MatrixXf B_given = read_file("datasets/dragon_6000_noisy/B.txt"); 			// file is nx6
-	MatrixXf SigmaS = read_file("datasets/dragon_6000_noisy/SigmaS.txt"); // file is nx6 	(SigmaS_given)
-	MatrixXf F = read_file("datasets/dragon_6000_noisy/F.txt"); 			// file is NfxNm (F_given)
+	MatrixXd S = read_file("datasets/dragon_6000_noisy/S.txt"); 			// file is nx3  (S_given)
+	MatrixXd St = read_file("datasets/dragon_6000_noisy/St.txt");			// file is nx3 	(St_given)
+	MatrixXd V = read_file("datasets/dragon_6000_noisy/M.txt"); 			// file is nx3 	(V_given)
+	MatrixXd M = read_file("datasets/dragon_6000_noisy/Msampled.txt"); 		// file is nx3 	(M_given)
+	MatrixXd gt = read_file("datasets/dragon_6000_noisy/gt.txt");			// file is 4x4  (gt_given)
+	MatrixXd B_given = read_file("datasets/dragon_6000_noisy/B.txt"); 			// file is nx6
+	MatrixXd SigmaS = read_file("datasets/dragon_6000_noisy/SigmaS.txt"); // file is nx6 	(SigmaS_given)
+	MatrixXd F = read_file("datasets/dragon_6000_noisy/F.txt"); 			// file is NfxNm (F_given)
 
 	// Change Shape of Matrices.
 	S.transposeInPlace();			  			// sensor points (3 x Ns)
 	St.transposeInPlace();						// sensor points (3 x Ns)
 	V.transposeInPlace(); 						// Vertices	(3 x Nv)
 	M.transposeInPlace();						// Model points (3 x Nm)
-	vector<Matrix<float,3,3>> B = B_Nsx6_to_3x3(&B_given);  		// (Ns x 3 x 3) 	(B_Nsx6 = B_given)
+	vector<Matrix<double,3,3>> B = B_Nsx6_to_3x3(&B_given);  		// (Ns x 3 x 3) 	(B_Nsx6 = B_given)
 
 	// Display Matrix Shapes. (function defined in helper)
 	printMatrixSize(&S);
@@ -65,8 +65,8 @@ int main(){
 	// Sample Model Points from the Model Data.
 	cout<<"Approx Sampled Model Points: "<<approx_sampled_model_points<<endl;
 	int interval_sampled_model_points = Nm/approx_sampled_model_points;
-	// MatrixXf M_sampled(M.rows(),(Nm/interval_sampled_model_points)+1);
-	MatrixXf M_sampled(M.rows(),(Nm/interval_sampled_model_points));
+	// MatrixXd M_sampled(M.rows(),(Nm/interval_sampled_model_points)+1);
+	MatrixXd M_sampled(M.rows(),(Nm/interval_sampled_model_points));
 	sampleModelPoints(&M, &M_sampled, &interval_sampled_model_points);
 
 	int Nm_sampled = M_sampled.cols();			// Points in Sampled Model data.
@@ -98,17 +98,17 @@ int main(){
 
 		cout<<"Error Before Optimization: "<<endl;					// Error Before Optimization.
 		// Find Angle Error.
-		Matrix<float,3,3> errorMat = gt.block(0,0,3,3);				// Extract Rotation Matrix from Transformation Matrix.
-		MatrixXf ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
+		Matrix<double,3,3> errorMat = gt.block(0,0,3,3);				// Extract Rotation Matrix from Transformation Matrix.
+		MatrixXd ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
 		// (Ignored the swap of angles. Used just to calculate angle norm.)
 		cout<<"Angle Error: "<<ea.norm()<<endl;
 
 		// Find Position Error.
-		Matrix<float,3,1> positionError = gt.block(0,3,3,1);
+		Matrix<double,3,1> positionError = gt.block(0,3,3,1);
 		cout<<"Position Error: "<<positionError.norm()<<endl;
 
 		// Define Model Data for optimization.
-		MatrixXf *M_global;
+		MatrixXd *M_global;
 		KDTree *tree_M_global;
 		if(M_sampled_switch_global_optimiser==1){
 			M_global = &M_sampled;						// Store the pointer in M_global.
@@ -148,7 +148,7 @@ int main(){
 		m.update();							// Update the model.
 
 		// Starting to compute minimum objective value.
-		MatrixXf gt_inv = gt.inverse();		// Inverse of ground truth transformation. (Transformation model to sensor)
+		MatrixXd gt_inv = gt.inverse();		// Inverse of ground truth transformation. (Transformation model to sensor)
 
 		OptVariables opt_vars;				// Store Opt Variables.
 		find_all_opt_variables(&opt_vars, &S, &M, &tree_M, &gt, &num_partitions_SOS2, &B);	// Complete this function.
@@ -158,10 +158,10 @@ int main(){
 
 		if(set_start_sol_switch==1){
 			m.set(GRB_IntParam_StartNodeLimit,2000000000-2);
-			MatrixXf S_Sampled = S.block(0,0,3,num_sampled_sens_points_ICP);	// (3 x 500)
+			MatrixXd S_Sampled = S.block(0,0,3,num_sampled_sens_points_ICP);	// (3 x 500)
 			// Perform ICP to find Transformation.
-			MatrixXf transformation = icp_test(&V, &S_Sampled, &M, &tree_M, &M_sampled, &tree_M_sampled, &SigmaS, &F, &points_per_face, &ICP_triangle_proj_switch_bucket, &ICP_or_GICP_switch_bucket);
-			MatrixXf S_NsSampled = S.block(0,0,3,Ns_sampled);				// (3 x 20)
+			MatrixXd transformation = icp_test(&V, &S_Sampled, &M, &tree_M, &M_sampled, &tree_M_sampled, &SigmaS, &F, &points_per_face, &ICP_triangle_proj_switch_bucket, &ICP_or_GICP_switch_bucket);
+			MatrixXd S_NsSampled = S.block(0,0,3,Ns_sampled);				// (3 x 20)
 			transformation = transformation.inverse();
 
 			// Find new opt_variables.
@@ -237,14 +237,14 @@ int main(){
 		int number_of_solutions = 100;
 		m.set(GRB_IntParam_PoolSolutions,number_of_solutions);		// Set PoolSolutions
 
-		MatrixXf FivePointEstimation = MatrixXf::Zero(number_of_solutions,4);
+		MatrixXd FivePointEstimation = MatrixXd::Zero(number_of_solutions,4);
 
 		for(int iii=0; iii<number_of_solutions; iii++){
 			// Define Bucket Matrix
 			int bucket_size = m.get(GRB_IntAttr_SolCount);
-			vector<MatrixXf> Bucket;							// (solCount x 4 x 4)
+			vector<MatrixXd> Bucket;							// (solCount x 4 x 4)
 			for(int i=0; i<bucket_size; i++){
-				Bucket.push_back(MatrixXf::Zero(4,4));
+				Bucket.push_back(MatrixXd::Zero(4,4));
 			}
 
 			if (iii<bucket_size){
@@ -252,7 +252,7 @@ int main(){
 				cout<<"Bucket Number: "<<iii<<endl;
 
 				// Extract values of solution at Cb
-				MatrixXf Cb_sampled_before_bucket = MatrixXf::Zero(Ns_sampled, Nm_global);
+				MatrixXd Cb_sampled_before_bucket = MatrixXd::Zero(Ns_sampled, Nm_global);
 				for(int k=0; k<Ns_sampled; k++){
 					for(int j=0; j<Nm_global; j++){
 						Cb_sampled_before_bucket(k,j) = Cb_sampled[k][j].get(GRB_DoubleAttr_Xn);
@@ -260,7 +260,7 @@ int main(){
 				}
 
 				// Extract values of solution at R.
-				MatrixXf R_bucket_input_M_to_S = MatrixXf::Zero(3,3);
+				MatrixXd R_bucket_input_M_to_S = MatrixXd::Zero(3,3);
 				for(int k=0; k<3; k++){
 					for(int j=0; j<3; j++){
 						R_bucket_input_M_to_S(k,j) = R[k][j].get(GRB_DoubleAttr_Xn);
@@ -268,25 +268,25 @@ int main(){
 				}
 
 				// Extract values of solution at T.
-				MatrixXf T_bucket_input_M_to_S = MatrixXf::Zero(3,1);
+				MatrixXd T_bucket_input_M_to_S = MatrixXd::Zero(3,1);
 				for(int k=0; k<3; k++){
 					T_bucket_input_M_to_S(k,0) = T[k][0].get(GRB_DoubleAttr_Xn);
 				}
 
-				MatrixXf mat_bucket_input_M_to_S = MatrixXf::Zero(4,4);			// Transformation matrix for bucket input.
+				MatrixXd mat_bucket_input_M_to_S = MatrixXd::Zero(4,4);			// Transformation matrix for bucket input.
 				mat_bucket_input_M_to_S(3,3)=1;
 				mat_bucket_input_M_to_S.block(0,0,3,3) = R_bucket_input_M_to_S;
 				mat_bucket_input_M_to_S.block(0,3,3,1) = T_bucket_input_M_to_S;
 				mat_bucket_input_M_to_S = mat_bucket_input_M_to_S.inverse();
 
-				MatrixXf R_bucket_input = mat_bucket_input_M_to_S.block(0,0,3,3);
-				Matrix<float,3,1> T_bucket_input = mat_bucket_input_M_to_S.block(0,3,3,1);
+				MatrixXd R_bucket_input = mat_bucket_input_M_to_S.block(0,0,3,3);
+				Matrix<double,3,1> T_bucket_input = mat_bucket_input_M_to_S.block(0,3,3,1);
 				// SVD decomposition of R_bucket_input
-				JacobiSVD<MatrixXf> svd(R_bucket_input, ComputeThinU | ComputeThinV);
-				MatrixXf R_bucket_input_valid = svd.matrixU()*svd.matrixV().transpose();		// V matrix provided by eigen library is transpose of V matrix given by numpy in python.
+				JacobiSVD<MatrixXd> svd(R_bucket_input, ComputeThinU | ComputeThinV);
+				MatrixXd R_bucket_input_valid = svd.matrixU()*svd.matrixV().transpose();		// V matrix provided by eigen library is transpose of V matrix given by numpy in python.
 
 				if(R_bucket_input_valid.determinant()<0){
-					MatrixXf temp = svd.matrixV();
+					MatrixXd temp = svd.matrixV();
 					temp(0,2)=-1*temp(0,2); temp(1,2)=-1*temp(1,2); temp(2,2)=-1*temp(2,2);
 					R_bucket_input_valid = svd.matrixU()*temp.transpose();
 				}
@@ -296,22 +296,22 @@ int main(){
 				cout<<"Ground Truth: "<<gt<<endl;
 
 				cout<<"Before Bucket Refinement: "<<endl;
-				MatrixXf error_mat = mat_bucket_input_M_to_S.inverse()*gt;
-				Matrix<float,3,3> errorMat = error_mat.block(0,0,3,3);
-				MatrixXf ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
+				MatrixXd error_mat = mat_bucket_input_M_to_S.inverse()*gt;
+				Matrix<double,3,3> errorMat = error_mat.block(0,0,3,3);
+				MatrixXd ea = errorMat.eulerAngles(2, 1, 0)*(180/PI);		// actual angles [ea(2,0), ea(1,0), ea(0,0)]
 				// (Ignored the swap of angles. Used just to calculate angle norm.)
 				cout<<"Angle Error: "<<ea.norm()<<endl;
 
 				// Find Position Error.
-				Matrix<float,3,1> positionError = error_mat.block(0,3,3,1);
+				Matrix<double,3,1> positionError = error_mat.block(0,3,3,1);
 				cout<<"Position Error: "<<positionError.norm()<<endl;
 
 				// Modified sensor data.
-				MatrixXf modified = (R_bucket_input_valid * S).colwise() + T_bucket_input;
+				MatrixXd modified = (R_bucket_input_valid * S).colwise() + T_bucket_input;
 
 				// call bucket refinement function to find final transformation matrix.
-				MatrixXf total_transf_after_ICP = bucket_refinement(&R_bucket_input_valid, &T_bucket_input, &Ns_sampled, &V, &S, &M_sampled, &tree_M_sampled, &M, &tree_M, &gt, &num_sampled_sens_points_ICP, &SigmaS, &F, &points_per_face, &ICP_or_GICP_switch_bucket, &ICP_triangle_proj_switch_bucket);
-				Bucket[iii] = total_transf_after_ICP;
+				// MatrixXd total_transf_after_ICP = bucket_refinement(&R_bucket_input_valid, &T_bucket_input, &Ns_sampled, &V, &S, &M_sampled, &tree_M_sampled, &M, &tree_M, &gt, &num_sampled_sens_points_ICP, &SigmaS, &F, &points_per_face, &ICP_or_GICP_switch_bucket, &ICP_triangle_proj_switch_bucket);
+				// Bucket[iii] = total_transf_after_ICP;
 			}
 			else{
 				break;

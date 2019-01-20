@@ -5,7 +5,7 @@
 
 using namespace std;
 
-void define_AlphaM2SConstr(GRBModel *model, vector<Matrix<float,3,3>> *B, MatrixXf *S, GRBVar *T, GRBVar *R, GRBVar *Cb_sampled, GRBVar *alpha, MatrixXf *M_global, int *Ns_sampled, int *Nm_global){
+void define_AlphaM2SConstr(GRBModel *model, vector<Matrix<double,3,3>> *B, MatrixXd *S, GRBVar *T, GRBVar *R, GRBVar *Cb_sampled, GRBVar *alpha, MatrixXd *M_global, int *Ns_sampled, int *Nm_global){
 	// Arguments:
 		// model:		Gurobi Model
 		// B:			Ns x 3 x 3
@@ -17,12 +17,12 @@ void define_AlphaM2SConstr(GRBModel *model, vector<Matrix<float,3,3>> *B, Matrix
 
 	for(int i=0; i<*Ns_sampled; i++){
 		for(int j=0; j<3; j++){				// Corresponding to jth row of B.
-			float sum=0;
+			double sum=0;
 			for(int k=0; k<3; k++){
 				// sum = sum + B[i][j][k] * S[k][i]
 				sum = sum + (*B)[i](j,k) * S->coeff(k,i);
 			}
-			float term_BSi = sum;
+			double term_BSi = sum;
 
 			GRBLinExpr sum1 = 0;
 			for(int k=0; k<3; k++){
@@ -112,7 +112,7 @@ void define_phiConstr(GRBModel *model, GRBVar *var, GRBVar *alpha, int *cols){
 	}
 }
 
-void define_RConstr(GRBModel *model, GRBVar *var, MatrixXf *gt){
+void define_RConstr(GRBModel *model, GRBVar *var, MatrixXd *gt){
 	// Arguments:
 		// model:		Gurobi Model
 		// var:			R (3 x 3)
@@ -229,7 +229,7 @@ void define_SOS2Constr(GRBModel *model, GRBVar *var){
 	}
 }
 
-void define_TConstr(GRBModel *model, GRBVar *var, MatrixXf *gt){
+void define_TConstr(GRBModel *model, GRBVar *var, MatrixXd *gt){
 	// Arguments:
 		// model:		Gurobi Model
 		// var:			Translation Var for Gurobi (3 x 1)
@@ -283,7 +283,7 @@ void define_3D_GRBVar(GRBModel *model, GRBVar *var, int dim3_size, int col_size,
 	}
 }
 
-void provide_initialSol(GRBVar *T, GRBVar *R, GRBVar *Cb_sampled, GRBVar *lam, GRBVar *W, GRBVar *alpha, GRBVar *phi, MatrixXf *transformation, OptVariables *opt_vars, int *Ns_sampled, int *Nm_global, int *num_partitions_SOS2){
+void provide_initialSol(GRBVar *T, GRBVar *R, GRBVar *Cb_sampled, GRBVar *lam, GRBVar *W, GRBVar *alpha, GRBVar *phi, MatrixXd *transformation, OptVariables *opt_vars, int *Ns_sampled, int *Nm_global, int *num_partitions_SOS2){
 	// Provide a better start for R & T.
 	for(int i=0; i<3; i++){
 		(*(T+1*i+0)).set(GRB_DoubleAttr_Start,transformation->coeff(i,3));		// Set the Translation Part. T[i][0]
